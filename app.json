@@ -1,0 +1,13 @@
+{
+  "title": "Luma3DS Weather",
+  "author": "Dzhmelyk135",
+  "description": "A working weather app for all Nintendo 3DS family consoles. Works even with smaller and less known cities.",
+  "category": "Utility",
+  "license": "MIT",
+  "website": "https://github.com/Dzhmelyk135/Luma3DSWeather",
+  "icon": "https://raw.githubusercontent.com/Dzhmelyk135/Luma3DSWeather/main/icon.png",
+  "screenshots": [],
+  "systems": ["3ds"],
+  "wiki": "",
+  "github": "Dzhmelyk135/Luma3DSWeather"
+}
