@@ -4,6 +4,7 @@ build/
 *.map
 *.smdh
 *.3dsx
+icon.png
 
 # devkitPro / devkitARM
 *.d
