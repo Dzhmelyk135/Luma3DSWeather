@@ -1,0 +1,86 @@
+#ifndef LANG_H
+#define LANG_H
+
+typedef enum {
+    LANG_IT = 0,
+    LANG_EN,
+    LANG_FR,
+    LANG_ES,
+    LANG_DE,
+    LANG_UK,
+    LANG_JA,
+    LANG_COUNT
+} LangID;
+
+// Chiavi di traduzione
+typedef enum {
+    STR_APP_TITLE = 0,
+    STR_CITY_LIST_TITLE,
+    STR_NAV_HINT,
+    STR_ADD_HINT,
+    STR_DEL_HINT,
+    STR_REORDER_HINT,
+    STR_POWERED_BY,
+    STR_CURRENT_TITLE,
+    STR_HOURLY_TITLE,
+    STR_DAILY_TITLE,
+    STR_DETAILS_TITLE,
+    STR_LEGEND_TITLE,
+    STR_LANG_TITLE,
+    STR_TEMP,
+    STR_FEELS,
+    STR_HUMIDITY,
+    STR_PRESSURE,
+    STR_WIND,
+    STR_SUNRISE,
+    STR_SUNSET,
+    STR_UV,
+    STR_WIND_DIR,
+    STR_FEELS_LIKE,
+    STR_DAWN,
+    STR_DUSK,
+    STR_HOUR_HDR,
+    STR_DAILY_HDR,
+    STR_BACK,
+    STR_EXIT,
+    STR_DOWNLOADING,
+    STR_WIFI_ERR,
+    STR_PRESS_B,
+    STR_SEARCH_HINT,
+    STR_SEARCHING,
+    STR_CITY_ADDED,
+    STR_CITY_NOT_FOUND,
+    STR_TRY_EN,
+    STR_CANCEL,
+    STR_SEARCH,
+    STR_NO_CITIES,
+    STR_FIRST_CITY,
+    STR_MOVE_HINT,
+    STR_REORDER_TITLE,
+    // Simboli legenda
+    STR_LEG_SUNNY,
+    STR_LEG_PCLOUDY,
+    STR_LEG_CLOUDY,
+    STR_LEG_FOG,
+    STR_LEG_DRIZZLE,
+    STR_LEG_RAIN,
+    STR_LEG_SNOW,
+    STR_LEG_STORM,
+    STR_LEG_UNKNOWN,
+    // Navigazione
+    STR_NAV_L_HOURLY,
+    STR_NAV_R_DAILY,
+    STR_NAV_X_DETAILS,
+    STR_NAV_SCROLL,
+    STR_NAV_BACK,
+    STR_SELECT_LANG,
+    STR_COUNT
+} StrKey;
+
+extern LangID currentLang;
+
+void        lang_set(LangID id);
+const char *lang_get(StrKey key);
+const char *lang_name(LangID id);
+
+#endif
