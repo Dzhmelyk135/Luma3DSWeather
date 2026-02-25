@@ -16,7 +16,7 @@ INCLUDES    := include
 APP_TITLE       := 3DS Weather
 APP_DESCRIPTION := Meteo per Nintendo 3DS
 APP_AUTHOR      := Dzhmelyk135
-ICON := icon.png
+ICON            := icon.png
 
 ARCH    := -march=armv6k -mtune=mpcore -mfloat-abi=hard -mtp=soft
 

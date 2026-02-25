@@ -6,7 +6,7 @@
 void cities_load(City *list, int *count) {
     *count = 0;
     FILE *f = fopen(CITIES_FILE, "r");
-    if (!f) return; // nessuna citta' di default
+    if (!f) return;
     while (*count < MAX_CITIES) {
         City *c = &list[*count];
         if (fscanf(f, "%47[^|]|%f|%f|%39[^\n]\n",

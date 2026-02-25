@@ -8,7 +8,6 @@
 #include "cities.h"
 #include "lang.h"
 
-// ── Colori ────────────────────────────────────────────────────────────────
 #define C_RST  "\x1b[0m"
 #define C_RED  "\x1b[31m"
 #define C_GRN  "\x1b[32m"
@@ -21,6 +20,15 @@
 
 #define T(k) lang_get(k)
 
+// ── Forward declarations ──────────────────────────────────────────────────
+static void draw_city_list(const City *c, int n, int sel);
+static void draw_current(const WeatherData *w, const char *city);
+static void draw_hourly(const WeatherData *w, const char *city, int off);
+static void draw_daily(const WeatherData *w, const char *city);
+static void draw_details(const WeatherData *w, const char *city);
+static void draw_legend(void);
+static void draw_language(int sel);
+static void draw_reorder(const City *c, int n, int sel, int moving);
 typedef enum {
     SCR_CITY_LIST,
     SCR_CURRENT,
@@ -32,7 +40,6 @@ typedef enum {
     SCR_REORDER,
 } Screen;
 
-// ── Salva/carica lingua ───────────────────────────────────────────────────
 static void lang_save(void) {
     FILE *f = fopen(LANG_FILE, "w");
     if (!f) return;
@@ -49,7 +56,6 @@ static void lang_load(void) {
     lang_set((LangID)id);
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────
 static const char *wind_dir_str(int deg) {
     const char *d[] = {"N","NE","E","SE","S","SO","O","NO"};
     return d[((deg + 22) % 360) / 45];
@@ -63,7 +69,6 @@ static void draw_header(const char *title, const char *sub) {
     printf(C_CYN "================================\n" C_RST);
 }
 
-// ── Schermate ─────────────────────────────────────────────────────────────
 static void draw_city_list(const City *c, int n, int sel) {
     consoleClear();
     draw_header(T(STR_APP_TITLE), T(STR_CITY_LIST_TITLE));
@@ -83,7 +88,7 @@ static void draw_city_list(const City *c, int n, int sel) {
         }
     }
     printf(C_CYN "--------------------------------\n" C_RST);
-    printf(C_WHT " L: lingua  | R: legenda\n" C_RST);  // <-- cambiato
+    printf(C_WHT " L: lingua  | R: legenda\n" C_RST);
     printf(C_WHT " A: meteo   | START: esci\n" C_RST);
     printf(C_WHT "%s\n" C_RST, T(STR_POWERED_BY));
 }
@@ -125,19 +130,27 @@ static void draw_hourly(const WeatherData *w,
     printf(C_CYN "--------------------------------\n" C_RST);
     int shown = 0;
     for (int i = off; i < HOURLY_COUNT && shown < 16; i++, shown++) {
-        printf(C_WHT " %02d:00" C_YLW " %5.1fC"
-               C_CYN " %4.1fmm" C_BLU " %3.0f%%"
-               C_GRN " %s\n" C_RST,
-               i, w->hourly_temp[i],
-               w->hourly_precip[i],
-               w->hourly_humidity[i],
-               weather_code_icon(w->hourly_code[i]));
+        if (i == w->current_hour)
+            printf(C_YLW C_BLD " %02d:00 %5.1fC %4.1fmm %3.0f%% %s <\n" C_RST,
+                   i,
+                   w->hourly_temp[i],
+                   w->hourly_precip[i],
+                   w->hourly_humidity[i],
+                   weather_code_icon(w->hourly_code[i]));
+        else
+            printf(C_WHT " %02d:00" C_YLW " %5.1fC"
+                   C_CYN " %4.1fmm" C_BLU " %3.0f%%"
+                   C_GRN " %s\n" C_RST,
+                   i,
+                   w->hourly_temp[i],
+                   w->hourly_precip[i],
+                   w->hourly_humidity[i],
+                   weather_code_icon(w->hourly_code[i]));
     }
     printf(C_CYN "--------------------------------\n" C_RST);
     printf(C_WHT "%s | %s\n" C_RST,
            T(STR_NAV_SCROLL), T(STR_NAV_BACK));
 }
-
 static void draw_daily(const WeatherData *w, const char *city) {
     consoleClear();
     draw_header(T(STR_DAILY_TITLE), city);
@@ -174,14 +187,11 @@ static void draw_details(const WeatherData *w, const char *city) {
     printf(C_WHT "%s" C_RED "%.1f\n"  C_RST,
            T(STR_UV),        w->uv_index);
     printf(C_WHT "%s" C_YLW "%02d:%02d\n" C_RST,
-           T(STR_DAWN),
-           w->sunrise_hour, w->sunrise_min);
+           T(STR_DAWN),  w->sunrise_hour, w->sunrise_min);
     printf(C_WHT "%s" C_YLW "%02d:%02d\n" C_RST,
-           T(STR_DUSK),
-           w->sunset_hour,  w->sunset_min);
+           T(STR_DUSK),  w->sunset_hour,  w->sunset_min);
     printf("\n");
 
-    // Barra pressione
     int bars = (int)((w->pressure_now - 970.f) / 60.f * 20.f);
     bars = bars < 0 ? 0 : bars > 20 ? 20 : bars;
     printf(C_CYN " P:[");
@@ -189,7 +199,6 @@ static void draw_details(const WeatherData *w, const char *city) {
         printf(i<bars ? C_GRN "#" C_RST : C_WHT "-" C_RST);
     printf(C_CYN "]\n" C_RST);
 
-    // Barra vento
     int wb = (int)(w->wind_now / 120.f * 20.f);
     wb = wb > 20 ? 20 : wb;
     printf(C_MAG " W:[");
@@ -255,7 +264,6 @@ static void draw_reorder(const City *c, int n, int sel, int moving) {
            T(STR_NAV_BACK));
 }
 
-// ── Keyboard ──────────────────────────────────────────────────────────────
 static bool get_kb(char *out, int maxlen,
                    const char *hint,
                    const char *btnCancel,
@@ -270,7 +278,6 @@ static bool get_kb(char *out, int maxlen,
             btn == SWKBD_BUTTON_RIGHT);
 }
 
-// ── Main ──────────────────────────────────────────────────────────────────
 int main(int argc, char *argv[]) {
     gfxInitDefault();
     httpcInit(0);
@@ -283,20 +290,19 @@ int main(int argc, char *argv[]) {
 
     mkdir("/3ds/3ds-weather", 0777);
 
-    // Carica lingua e città
     lang_load();
 
     City cities[MAX_CITIES];
     int  cityCount = 0;
     cities_load(cities, &cityCount);
 
-    Screen      screen  = SCR_CITY_LIST;
-    int         selCity = 0;
-    int         selLang = (int)currentLang;
-    int         hourOff = 0;
+    Screen      screen        = SCR_CITY_LIST;
+    int         selCity       = 0;
+    int         selLang       = (int)currentLang;
+    int         hourOff       = 0;
     int         reorderSel    = 0;
     bool        reorderMoving = false;
-    bool        redraw  = true;
+    bool        redraw        = true;
     WeatherData wdata;
     memset(&wdata, 0, sizeof(wdata));
 
@@ -308,17 +314,16 @@ int main(int argc, char *argv[]) {
 
         switch (screen) {
 
-                // ── Lista città ───────────────────────────────────────────────
         case SCR_CITY_LIST:
             if (kDown & KEY_DOWN) {
-                if (cityCount>0)
-                    selCity=(selCity+1)%cityCount;
-                redraw=true;
+                if (cityCount > 0)
+                    selCity = (selCity+1) % cityCount;
+                redraw = true;
             }
             if (kDown & KEY_UP) {
-                if (cityCount>0)
-                    selCity=(selCity-1+cityCount)%cityCount;
-                redraw=true;
+                if (cityCount > 0)
+                    selCity = (selCity-1+cityCount) % cityCount;
+                redraw = true;
             }
             if (kDown & KEY_A && cityCount > 0) {
                 consoleClear();
@@ -350,7 +355,6 @@ int main(int argc, char *argv[]) {
                     redraw = true;
                 }
             }
-            // Aggiungi città
             if (kDown & KEY_X) {
                 char inp[48]="", found[48]="", tz[40]="Europe/Rome";
                 float la=0, lo=0;
@@ -384,14 +388,12 @@ int main(int argc, char *argv[]) {
                 }
                 redraw = true;
             }
-            // Elimina città
             if (kDown & KEY_Y && cityCount > 1) {
                 cities_remove(cities, &cityCount, selCity);
                 cities_save(cities, cityCount);
                 if (selCity >= cityCount) selCity = cityCount-1;
                 redraw = true;
             }
-            // Riordina
             if (kDown & KEY_SELECT && cityCount > 1) {
                 reorderSel    = selCity;
                 reorderMoving = false;
@@ -400,14 +402,12 @@ int main(int argc, char *argv[]) {
                              reorderSel, reorderMoving);
                 redraw = false;
             }
-            // Lingua  <-- era KEY_ZL, ora KEY_L
             if (kDown & KEY_L) {
                 selLang = (int)currentLang;
                 screen = SCR_LANGUAGE;
                 draw_language(selLang);
                 redraw = false;
             }
-            // Legenda  <-- era KEY_ZR, ora KEY_R
             if (kDown & KEY_R) {
                 screen = SCR_LEGEND;
                 draw_legend();
@@ -419,7 +419,6 @@ int main(int argc, char *argv[]) {
             }
             break;
 
-        // ── Meteo attuale ─────────────────────────────────────────────
         case SCR_CURRENT:
             if (kDown & KEY_B) {
                 screen = SCR_CITY_LIST;
@@ -444,7 +443,6 @@ int main(int argc, char *argv[]) {
             }
             break;
 
-        // ── Ore di oggi ───────────────────────────────────────────────
         case SCR_HOURLY:
             if (kDown & KEY_B) {
                 screen = SCR_CURRENT;
@@ -466,7 +464,6 @@ int main(int argc, char *argv[]) {
             }
             break;
 
-        // ── 7 giorni ──────────────────────────────────────────────────
         case SCR_DAILY:
             if (kDown & KEY_B) {
                 screen = SCR_CURRENT;
@@ -487,7 +484,6 @@ int main(int argc, char *argv[]) {
             }
             break;
 
-        // ── Dettagli ──────────────────────────────────────────────────
         case SCR_DETAILS:
             if (kDown & KEY_B) {
                 screen = SCR_CURRENT;
@@ -499,7 +495,6 @@ int main(int argc, char *argv[]) {
             }
             break;
 
-        // ── Legenda ───────────────────────────────────────────────────
         case SCR_LEGEND:
             if (kDown & KEY_B) {
                 screen = SCR_CITY_LIST;
@@ -511,7 +506,6 @@ int main(int argc, char *argv[]) {
             }
             break;
 
-        // ── Selezione lingua ──────────────────────────────────────────
         case SCR_LANGUAGE:
             if (kDown & KEY_DOWN) {
                 selLang = (selLang+1) % LANG_COUNT;
@@ -535,7 +529,6 @@ int main(int argc, char *argv[]) {
             }
             break;
 
-        // ── Riordina città ────────────────────────────────────────────
         case SCR_REORDER:
             if (kDown & KEY_B && !reorderMoving) {
                 cities_save(cities, cityCount);
@@ -548,12 +541,10 @@ int main(int argc, char *argv[]) {
                 draw_reorder(cities, cityCount,
                              reorderSel, reorderMoving);
             } else if (kDown & KEY_DOWN) {
-                if (reorderMoving &&
-                    reorderSel < cityCount-1) {
+                if (reorderMoving && reorderSel < cityCount-1) {
                     cities_swap(cities, reorderSel, reorderSel+1);
                     reorderSel++;
-                } else if (!reorderMoving &&
-                           reorderSel < cityCount-1) {
+                } else if (!reorderMoving && reorderSel < cityCount-1) {
                     reorderSel++;
                 }
                 draw_reorder(cities, cityCount,

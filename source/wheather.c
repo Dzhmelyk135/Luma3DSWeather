@@ -145,139 +145,216 @@ int weather_fetch(float lat, float lon,
         else tz_enc[ti++] = timezone[i];
     }
 
+    // ── Richiesta 1: solo dati correnti ──────────────────────────��───
     snprintf(url, sizeof(url),
         "http://api.open-meteo.com/v1/forecast"
         "?latitude=%.4f&longitude=%.4f"
         "&current=temperature_2m,relative_humidity_2m,"
         "apparent_temperature,weather_code,wind_speed_10m,"
-        "wind_direction_10m,surface_pressure,precipitation"
-        "&hourly=temperature_2m,precipitation,"
-        "relative_humidity_2m,weather_code"
-        "&daily=weather_code,temperature_2m_max,temperature_2m_min,"
-        "precipitation_sum,wind_speed_10m_max,uv_index_max,"
-        "sunrise,sunset"
-        "&forecast_days=7&forecast_hours=24&timezone=%s",
+        "wind_direction_10m,surface_pressure"
+        "&timezone=%s",
         lat, lon, tz_enc);
 
     u32 bytesRead = 0;
     int ret = http_get(url, buf, HTTP_BUF_SIZE, &bytesRead);
     if (ret < 0) { free(buf); return ret; }
 
-    jsmn_parser p;
-    jsmntok_t *tok =
-        (jsmntok_t*)malloc(MAX_TOKENS * sizeof(jsmntok_t));
-    jsmn_init(&p);
-    int r = jsmn_parse(&p, buf, bytesRead, tok, MAX_TOKENS);
-    if (r < 0) {
-        free(tok); free(buf); return -20;
-    }
-
-    char val[32];
-    for (int i = 0; i < r - 1; i++) {
-        if (tok[i].type != JSMN_STRING) continue;
-        if (jsoneq(buf,&tok[i],"temperature_2m")==0
-            && tok[i+1].type==JSMN_PRIMITIVE) {
-            tok2str(buf,&tok[i+1],val,sizeof(val));
-            out->temp_now=strtof(val,NULL);
-        } else if (jsoneq(buf,&tok[i],"relative_humidity_2m")==0
-                   && tok[i+1].type==JSMN_PRIMITIVE) {
-            tok2str(buf,&tok[i+1],val,sizeof(val));
-            out->humidity_now=strtof(val,NULL);
-        } else if (jsoneq(buf,&tok[i],"apparent_temperature")==0
-                   && tok[i+1].type==JSMN_PRIMITIVE) {
-            tok2str(buf,&tok[i+1],val,sizeof(val));
-            out->feels_like_now=strtof(val,NULL);
-        } else if (jsoneq(buf,&tok[i],"weather_code")==0
-                   && tok[i+1].type==JSMN_PRIMITIVE) {
-            tok2str(buf,&tok[i+1],val,sizeof(val));
-            out->weather_code_now=atoi(val);
-        } else if (jsoneq(buf,&tok[i],"wind_speed_10m")==0
-                   && tok[i+1].type==JSMN_PRIMITIVE) {
-            tok2str(buf,&tok[i+1],val,sizeof(val));
-            out->wind_now=strtof(val,NULL);
-        } else if (jsoneq(buf,&tok[i],"wind_direction_10m")==0
-                   && tok[i+1].type==JSMN_PRIMITIVE) {
-            tok2str(buf,&tok[i+1],val,sizeof(val));
-            out->wind_dir_now=atoi(val);
-        } else if (jsoneq(buf,&tok[i],"surface_pressure")==0
-                   && tok[i+1].type==JSMN_PRIMITIVE) {
-            tok2str(buf,&tok[i+1],val,sizeof(val));
-            out->pressure_now=strtof(val,NULL);
-        } else if (jsoneq(buf,&tok[i],"uv_index_max")==0
-                   && tok[i+1].type==JSMN_ARRAY) {
-            tok2str(buf,&tok[i+2],val,sizeof(val));
-            out->uv_index=strtof(val,NULL);
-        } else if (jsoneq(buf,&tok[i],"temperature_2m")==0
-                   && tok[i+1].type==JSMN_ARRAY) {
-            for (int j=0;j<HOURLY_COUNT&&j<tok[i+1].size;j++) {
-                tok2str(buf,&tok[i+2+j],val,sizeof(val));
-                out->hourly_temp[j]=strtof(val,NULL);
-            }
-        } else if (jsoneq(buf,&tok[i],"precipitation")==0
-                   && tok[i+1].type==JSMN_ARRAY) {
-            for (int j=0;j<HOURLY_COUNT&&j<tok[i+1].size;j++) {
-                tok2str(buf,&tok[i+2+j],val,sizeof(val));
-                out->hourly_precip[j]=strtof(val,NULL);
-            }
-        } else if (jsoneq(buf,&tok[i],"relative_humidity_2m")==0
-                   && tok[i+1].type==JSMN_ARRAY) {
-            for (int j=0;j<HOURLY_COUNT&&j<tok[i+1].size;j++) {
-                tok2str(buf,&tok[i+2+j],val,sizeof(val));
-                out->hourly_humidity[j]=strtof(val,NULL);
-            }
-        } else if (jsoneq(buf,&tok[i],"weather_code")==0
-                   && tok[i+1].type==JSMN_ARRAY) {
-            for (int j=0;j<HOURLY_COUNT&&j<tok[i+1].size;j++) {
-                tok2str(buf,&tok[i+2+j],val,sizeof(val));
-                out->hourly_code[j]=atoi(val);
-            }
-        } else if (jsoneq(buf,&tok[i],"time")==0
-                   && tok[i+1].type==JSMN_ARRAY) {
-            for (int j=0;j<FORECAST_DAYS&&j<tok[i+1].size;j++)
-                tok2str(buf,&tok[i+2+j],out->daily_date[j],12);
-        } else if (jsoneq(buf,&tok[i],"temperature_2m_max")==0
-                   && tok[i+1].type==JSMN_ARRAY) {
-            for (int j=0;j<FORECAST_DAYS&&j<tok[i+1].size;j++) {
-                tok2str(buf,&tok[i+2+j],val,sizeof(val));
-                out->daily_max[j]=strtof(val,NULL);
-            }
-        } else if (jsoneq(buf,&tok[i],"temperature_2m_min")==0
-                   && tok[i+1].type==JSMN_ARRAY) {
-            for (int j=0;j<FORECAST_DAYS&&j<tok[i+1].size;j++) {
-                tok2str(buf,&tok[i+2+j],val,sizeof(val));
-                out->daily_min[j]=strtof(val,NULL);
-            }
-        } else if (jsoneq(buf,&tok[i],"precipitation_sum")==0
-                   && tok[i+1].type==JSMN_ARRAY) {
-            for (int j=0;j<FORECAST_DAYS&&j<tok[i+1].size;j++) {
-                tok2str(buf,&tok[i+2+j],val,sizeof(val));
-                out->daily_precip[j]=strtof(val,NULL);
-            }
-        } else if (jsoneq(buf,&tok[i],"wind_speed_10m_max")==0
-                   && tok[i+1].type==JSMN_ARRAY) {
-            for (int j=0;j<FORECAST_DAYS&&j<tok[i+1].size;j++) {
-                tok2str(buf,&tok[i+2+j],val,sizeof(val));
-                out->daily_wind_max[j]=strtof(val,NULL);
-            }
-        } else if (jsoneq(buf,&tok[i],"sunrise")==0
-                   && tok[i+1].type==JSMN_ARRAY) {
-            char sr[20];
-            tok2str(buf,&tok[i+2],sr,sizeof(sr));
-            if (strlen(sr)>=16) {
-                out->sunrise_hour=atoi(sr+11);
-                out->sunrise_min =atoi(sr+14);
-            }
-        } else if (jsoneq(buf,&tok[i],"sunset")==0
-                   && tok[i+1].type==JSMN_ARRAY) {
-            char ss[20];
-            tok2str(buf,&tok[i+2],ss,sizeof(ss));
-            if (strlen(ss)>=16) {
-                out->sunset_hour=atoi(ss+11);
-                out->sunset_min =atoi(ss+14);
+    {
+        jsmn_parser p;
+        jsmntok_t *tok = (jsmntok_t*)malloc(MAX_TOKENS * sizeof(jsmntok_t));
+        jsmn_init(&p);
+        int r = jsmn_parse(&p, buf, bytesRead, tok, MAX_TOKENS);
+        char val[32];
+        for (int i = 0; i < r - 1; i++) {
+            if (tok[i].type != JSMN_STRING) continue;
+            if (jsoneq(buf,&tok[i],"temperature_2m")==0
+                && tok[i+1].type==JSMN_PRIMITIVE) {
+                tok2str(buf,&tok[i+1],val,sizeof(val));
+                out->temp_now = strtof(val,NULL);
+            } else if (jsoneq(buf,&tok[i],"relative_humidity_2m")==0
+                       && tok[i+1].type==JSMN_PRIMITIVE) {
+                tok2str(buf,&tok[i+1],val,sizeof(val));
+                out->humidity_now = strtof(val,NULL);
+            } else if (jsoneq(buf,&tok[i],"apparent_temperature")==0
+                       && tok[i+1].type==JSMN_PRIMITIVE) {
+                tok2str(buf,&tok[i+1],val,sizeof(val));
+                out->feels_like_now = strtof(val,NULL);
+            } else if (jsoneq(buf,&tok[i],"weather_code")==0
+                       && tok[i+1].type==JSMN_PRIMITIVE) {
+                tok2str(buf,&tok[i+1],val,sizeof(val));
+                out->weather_code_now = atoi(val);
+            } else if (jsoneq(buf,&tok[i],"wind_speed_10m")==0
+                       && tok[i+1].type==JSMN_PRIMITIVE) {
+                tok2str(buf,&tok[i+1],val,sizeof(val));
+                out->wind_now = strtof(val,NULL);
+            } else if (jsoneq(buf,&tok[i],"wind_direction_10m")==0
+                       && tok[i+1].type==JSMN_PRIMITIVE) {
+                tok2str(buf,&tok[i+1],val,sizeof(val));
+                out->wind_dir_now = atoi(val);
+            } else if (jsoneq(buf,&tok[i],"surface_pressure")==0
+                       && tok[i+1].type==JSMN_PRIMITIVE) {
+                tok2str(buf,&tok[i+1],val,sizeof(val));
+                out->pressure_now = strtof(val,NULL);
+            } else if (jsoneq(buf,&tok[i],"time")==0
+                       && tok[i+1].type==JSMN_STRING) {
+                // "2026-02-25T14:00" → estrai ora
+                char tstr[32];
+                tok2str(buf,&tok[i+1],tstr,sizeof(tstr));
+                if (strlen(tstr) >= 13)
+                    out->current_hour = atoi(tstr + 11);
             }
         }
+        free(tok);
     }
-    free(tok); free(buf);
+
+    // ── Richiesta 2: hourly solo oggi (forecast_days=1) ───────────────
+    // Con forecast_days=1 Open-Meteo restituisce esattamente
+    // le 24 ore di oggi: [0]=00:00, [1]=01:00, ..., [23]=23:00
+    snprintf(url, sizeof(url),
+        "http://api.open-meteo.com/v1/forecast"
+        "?latitude=%.4f&longitude=%.4f"
+        "&hourly=temperature_2m,precipitation,"
+        "relative_humidity_2m,weather_code"
+        "&forecast_days=1"
+        "&timezone=%s",
+        lat, lon, tz_enc);
+
+    bytesRead = 0;
+    ret = http_get(url, buf, HTTP_BUF_SIZE, &bytesRead);
+    if (ret < 0) { free(buf); return ret; }
+
+    {
+        jsmn_parser p;
+        jsmntok_t *tok = (jsmntok_t*)malloc(MAX_TOKENS * sizeof(jsmntok_t));
+        jsmn_init(&p);
+        int r = jsmn_parse(&p, buf, bytesRead, tok, MAX_TOKENS);
+        char val[32];
+        int temp_arr_count  = 0;
+        int wcode_arr_count = 0;
+
+        for (int i = 0; i < r - 1; i++) {
+            if (tok[i].type != JSMN_STRING) continue;
+
+            if (jsoneq(buf,&tok[i],"temperature_2m")==0
+                && tok[i+1].type==JSMN_ARRAY) {
+                temp_arr_count++;
+                if (temp_arr_count == 1) {
+                    for (int j=0;j<HOURLY_COUNT&&j<tok[i+1].size;j++) {
+                        tok2str(buf,&tok[i+2+j],val,sizeof(val));
+                        out->hourly_temp[j]=strtof(val,NULL);
+                    }
+                }
+            } else if (jsoneq(buf,&tok[i],"precipitation")==0
+                       && tok[i+1].type==JSMN_ARRAY) {
+                for (int j=0;j<HOURLY_COUNT&&j<tok[i+1].size;j++) {
+                    tok2str(buf,&tok[i+2+j],val,sizeof(val));
+                    out->hourly_precip[j]=strtof(val,NULL);
+                }
+            } else if (jsoneq(buf,&tok[i],"relative_humidity_2m")==0
+                       && tok[i+1].type==JSMN_ARRAY) {
+                for (int j=0;j<HOURLY_COUNT&&j<tok[i+1].size;j++) {
+                    tok2str(buf,&tok[i+2+j],val,sizeof(val));
+                    out->hourly_humidity[j]=strtof(val,NULL);
+                }
+            } else if (jsoneq(buf,&tok[i],"weather_code")==0
+                       && tok[i+1].type==JSMN_ARRAY) {
+                wcode_arr_count++;
+                if (wcode_arr_count == 1) {
+                    for (int j=0;j<HOURLY_COUNT&&j<tok[i+1].size;j++) {
+                        tok2str(buf,&tok[i+2+j],val,sizeof(val));
+                        out->hourly_code[j]=atoi(val);
+                    }
+                }
+            }
+        }
+        free(tok);
+    }
+
+    // ── Richiesta 3: solo daily 7 giorni ─────────────────────────────
+    snprintf(url, sizeof(url),
+        "http://api.open-meteo.com/v1/forecast"
+        "?latitude=%.4f&longitude=%.4f"
+        "&daily=weather_code,temperature_2m_max,temperature_2m_min,"
+        "precipitation_sum,wind_speed_10m_max,uv_index_max,"
+        "sunrise,sunset"
+        "&forecast_days=7"
+        "&timezone=%s",
+        lat, lon, tz_enc);
+
+    bytesRead = 0;
+    ret = http_get(url, buf, HTTP_BUF_SIZE, &bytesRead);
+    if (ret < 0) { free(buf); return ret; }
+
+    {
+        jsmn_parser p;
+        jsmntok_t *tok = (jsmntok_t*)malloc(MAX_TOKENS * sizeof(jsmntok_t));
+        jsmn_init(&p);
+        int r = jsmn_parse(&p, buf, bytesRead, tok, MAX_TOKENS);
+        char val[32];
+
+        for (int i = 0; i < r - 1; i++) {
+            if (tok[i].type != JSMN_STRING) continue;
+
+            if (jsoneq(buf,&tok[i],"weather_code")==0
+                && tok[i+1].type==JSMN_ARRAY) {
+                for (int j=0;j<FORECAST_DAYS&&j<tok[i+1].size;j++) {
+                    tok2str(buf,&tok[i+2+j],val,sizeof(val));
+                    out->daily_code[j]=atoi(val);
+                }
+            } else if (jsoneq(buf,&tok[i],"time")==0
+                       && tok[i+1].type==JSMN_ARRAY) {
+                for (int j=0;j<FORECAST_DAYS&&j<tok[i+1].size;j++)
+                    tok2str(buf,&tok[i+2+j],out->daily_date[j],12);
+            } else if (jsoneq(buf,&tok[i],"temperature_2m_max")==0
+                       && tok[i+1].type==JSMN_ARRAY) {
+                for (int j=0;j<FORECAST_DAYS&&j<tok[i+1].size;j++) {
+                    tok2str(buf,&tok[i+2+j],val,sizeof(val));
+                    out->daily_max[j]=strtof(val,NULL);
+                }
+            } else if (jsoneq(buf,&tok[i],"temperature_2m_min")==0
+                       && tok[i+1].type==JSMN_ARRAY) {
+                for (int j=0;j<FORECAST_DAYS&&j<tok[i+1].size;j++) {
+                    tok2str(buf,&tok[i+2+j],val,sizeof(val));
+                    out->daily_min[j]=strtof(val,NULL);
+                }
+            } else if (jsoneq(buf,&tok[i],"precipitation_sum")==0
+                       && tok[i+1].type==JSMN_ARRAY) {
+                for (int j=0;j<FORECAST_DAYS&&j<tok[i+1].size;j++) {
+                    tok2str(buf,&tok[i+2+j],val,sizeof(val));
+                    out->daily_precip[j]=strtof(val,NULL);
+                }
+            } else if (jsoneq(buf,&tok[i],"wind_speed_10m_max")==0
+                       && tok[i+1].type==JSMN_ARRAY) {
+                for (int j=0;j<FORECAST_DAYS&&j<tok[i+1].size;j++) {
+                    tok2str(buf,&tok[i+2+j],val,sizeof(val));
+                    out->daily_wind_max[j]=strtof(val,NULL);
+                }
+            } else if (jsoneq(buf,&tok[i],"uv_index_max")==0
+                       && tok[i+1].type==JSMN_ARRAY) {
+                tok2str(buf,&tok[i+2],val,sizeof(val));
+                out->uv_index=strtof(val,NULL);
+            } else if (jsoneq(buf,&tok[i],"sunrise")==0
+                       && tok[i+1].type==JSMN_ARRAY) {
+                char sr[20];
+                tok2str(buf,&tok[i+2],sr,sizeof(sr));
+                if (strlen(sr)>=16) {
+                    out->sunrise_hour=atoi(sr+11);
+                    out->sunrise_min =atoi(sr+14);
+                }
+            } else if (jsoneq(buf,&tok[i],"sunset")==0
+                       && tok[i+1].type==JSMN_ARRAY) {
+                char ss[20];
+                tok2str(buf,&tok[i+2],ss,sizeof(ss));
+                if (strlen(ss)>=16) {
+                    out->sunset_hour=atoi(ss+11);
+                    out->sunset_min =atoi(ss+14);
+                }
+            }
+        }
+        free(tok);
+    }
+
+    free(buf);
     out->valid = 1;
     return 0;
 }
@@ -313,15 +390,15 @@ const char *weather_code_desc(int code) {
 }
 
 const char *weather_code_icon(int code) {
-    if (code == 0)               return "(*)";
-    if (code <= 2)               return "(^)";
-    if (code == 3)               return "(n)";
-    if (code==45 || code==48)    return "~~~";
-    if (code <= 55)              return "._.";
-    if (code <= 65)              return ".|.";
-    if (code <= 77)              return "***";
-    if (code <= 82)              return ".|.";
-    if (code <= 86)              return "***";
-    if (code >= 95)              return "/!/";
+    if (code == 0)            return "(*)";
+    if (code <= 2)            return "(^)";
+    if (code == 3)            return "(n)";
+    if (code==45||code==48)   return "~~~";
+    if (code <= 55)           return "._.";
+    if (code <= 65)           return ".|.";
+    if (code <= 77)           return "***";
+    if (code <= 82)           return ".|.";
+    if (code <= 86)           return "***";
+    if (code >= 95)           return "/!/";
     return "???";
 }

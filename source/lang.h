@@ -12,7 +12,6 @@ typedef enum {
     LANG_COUNT
 } LangID;
 
-// Chiavi di traduzione
 typedef enum {
     STR_APP_TITLE = 0,
     STR_CITY_LIST_TITLE,
@@ -57,7 +56,6 @@ typedef enum {
     STR_FIRST_CITY,
     STR_MOVE_HINT,
     STR_REORDER_TITLE,
-    // Simboli legenda
     STR_LEG_SUNNY,
     STR_LEG_PCLOUDY,
     STR_LEG_CLOUDY,
@@ -67,13 +65,13 @@ typedef enum {
     STR_LEG_SNOW,
     STR_LEG_STORM,
     STR_LEG_UNKNOWN,
-    // Navigazione
     STR_NAV_L_HOURLY,
     STR_NAV_R_DAILY,
     STR_NAV_X_DETAILS,
     STR_NAV_SCROLL,
     STR_NAV_BACK,
     STR_SELECT_LANG,
+    STR_NOW,
     STR_COUNT
 } StrKey;
 

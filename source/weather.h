@@ -12,6 +12,7 @@ typedef struct {
     float humidity_now;
     float feels_like_now;
     int   weather_code_now;
+    int   current_hour;
 
     float hourly_temp[HOURLY_COUNT];
     float hourly_precip[HOURLY_COUNT];

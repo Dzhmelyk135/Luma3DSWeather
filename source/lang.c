@@ -3,10 +3,8 @@
 
 LangID currentLang = LANG_IT;
 
-// ── Tabella traduzioni [LANG_COUNT][STR_COUNT] ────────────────────────────
 static const char *strings[LANG_COUNT][STR_COUNT] = {
 
-// ── ITALIANO ─────────────────────────────────────────────────────────────
 [LANG_IT] = {
     [STR_APP_TITLE]      = "3DS METEO",
     [STR_CITY_LIST_TITLE]= "CITTA'",
@@ -66,9 +64,9 @@ static const char *strings[LANG_COUNT][STR_COUNT] = {
     [STR_NAV_SCROLL]     = " SU/GIU: scorri",
     [STR_NAV_BACK]       = " B: indietro",
     [STR_SELECT_LANG]    = " A: seleziona  B: indietro",
+    [STR_NOW]            = "ORA",
 },
 
-// ── ENGLISH ───────────────────────────────────────────────────────────────
 [LANG_EN] = {
     [STR_APP_TITLE]      = "3DS WEATHER",
     [STR_CITY_LIST_TITLE]= "CITIES",
@@ -128,9 +126,9 @@ static const char *strings[LANG_COUNT][STR_COUNT] = {
     [STR_NAV_SCROLL]     = " UP/DOWN: scroll",
     [STR_NAV_BACK]       = " B: back",
     [STR_SELECT_LANG]    = " A: select  B: back",
+    [STR_NOW]            = "NOW",
 },
 
-// ── FRANÇAIS ──────────────────────────────────────────────────────────────
 [LANG_FR] = {
     [STR_APP_TITLE]      = "3DS METEO",
     [STR_CITY_LIST_TITLE]= "VILLES",
@@ -190,9 +188,9 @@ static const char *strings[LANG_COUNT][STR_COUNT] = {
     [STR_NAV_SCROLL]     = " HAUT/BAS: defiler",
     [STR_NAV_BACK]       = " B: retour",
     [STR_SELECT_LANG]    = " A: selectionner  B: retour",
+    [STR_NOW]            = "MAINTENANT",
 },
 
-// ── ESPAÑOL ───────────────────────────────────────────────────────────────
 [LANG_ES] = {
     [STR_APP_TITLE]      = "3DS TIEMPO",
     [STR_CITY_LIST_TITLE]= "CIUDADES",
@@ -252,9 +250,9 @@ static const char *strings[LANG_COUNT][STR_COUNT] = {
     [STR_NAV_SCROLL]     = " ARR/ABA: desplazar",
     [STR_NAV_BACK]       = " B: volver",
     [STR_SELECT_LANG]    = " A: seleccionar  B: volver",
+    [STR_NOW]            = "AHORA",
 },
 
-// ── DEUTSCH ───────────────────────────────────────────────────────────────
 [LANG_DE] = {
     [STR_APP_TITLE]      = "3DS WETTER",
     [STR_CITY_LIST_TITLE]= "STAEDTE",
@@ -314,9 +312,9 @@ static const char *strings[LANG_COUNT][STR_COUNT] = {
     [STR_NAV_SCROLL]     = " OBEN/UNTEN: scrollen",
     [STR_NAV_BACK]       = " B: zurueck",
     [STR_SELECT_LANG]    = " A: auswaehlen  B: zurueck",
+    [STR_NOW]            = "JETZT",
 },
 
-// ── УКРАЇНСЬКА ────────────────────────────────────────────────────────────
 [LANG_UK] = {
     [STR_APP_TITLE]      = "3DS POGODA",
     [STR_CITY_LIST_TITLE]= "MISTA",
@@ -361,7 +359,7 @@ static const char *strings[LANG_COUNT][STR_COUNT] = {
     [STR_FIRST_CITY]     = " Natisn. X shchob dodaty.",
     [STR_MOVE_HINT]      = " VGORU/VNYZ: ruh  A: pidtv.",
     [STR_REORDER_TITLE]  = "PERESTAVYTY MISTA",
-    [STR_LEG_SUNNY]      = "(*) Yasnо",
+    [STR_LEG_SUNNY]      = "(*) Yasno",
     [STR_LEG_PCLOUDY]    = "(^) Maren. khmarnist",
     [STR_LEG_CLOUDY]     = "(n) Khmarnо",
     [STR_LEG_FOG]        = "~~~ Tuman",
@@ -376,9 +374,9 @@ static const char *strings[LANG_COUNT][STR_COUNT] = {
     [STR_NAV_SCROLL]     = " VGORU/VNYZ: prokrut.",
     [STR_NAV_BACK]       = " B: nazad",
     [STR_SELECT_LANG]    = " A: vybraty  B: nazad",
+    [STR_NOW]            = "ZARAZ",
 },
 
-// ── 日本語 ────────────────────────────────────────────────────────────────
 [LANG_JA] = {
     [STR_APP_TITLE]      = "3DS TENKI",
     [STR_CITY_LIST_TITLE]= "TOSHI RISUTO",
@@ -438,9 +436,10 @@ static const char *strings[LANG_COUNT][STR_COUNT] = {
     [STR_NAV_SCROLL]     = " UE/SHITA: sukuroru",
     [STR_NAV_BACK]       = " B: modoru",
     [STR_SELECT_LANG]    = " A: sentaku  B: modoru",
+    [STR_NOW]            = "IMA",
 },
 
-}; // fine tabella
+};
 
 void lang_set(LangID id) {
     if (id >= 0 && id < LANG_COUNT)
