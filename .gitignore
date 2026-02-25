@@ -1,0 +1,22 @@
+# Build output
+build/
+*.elf
+*.map
+*.smdh
+*.3dsx
+
+# devkitPro / devkitARM
+*.d
+*.o
+
+# Editor temporanei
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+desktop.ini
