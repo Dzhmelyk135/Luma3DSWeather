@@ -53,22 +53,12 @@ export INCLUDE      := $(foreach dir,$(INCLUDES),-I$(CURDIR)/$(dir)) \
                        -I$(BUILD)
 export LIBPATHS     := $(foreach dir,$(LIBDIRS),-L$(dir)/lib)
 
-ifeq ($(strip $(ICON)),)
-    icons := $(wildcard *.png)
-    ifneq (,$(findstring $(TARGET).png,$(icons)))
-        export APP_ICON := $(TOPDIR)/$(TARGET).png
-    else ifneq (,$(findstring icon.png,$(icons)))
-        export APP_ICON := $(TOPDIR)/icon.png
-    endif
-else
-    export APP_ICON := $(TOPDIR)/$(ICON)
-endif
+export APP_ICON := $(TOPDIR)/icon.png
 
-ifeq ($(strip $(NO_SMDH)),)
-    export _3DSXFLAGS += --smdh=$(CURDIR)/$(TARGET).smdh
-endif
+# ── Questa riga allega SMDH al .3dsx per Homebrew Launcher ──────────────
+export _3DSXFLAGS += --smdh=$(CURDIR)/$(TARGET).smdh
 
-.PHONY: $(BUILD) clean all
+.PHONY: $(BUILD) clean all cia
 
 all: $(BUILD)
 
@@ -78,7 +68,34 @@ $(BUILD):
 
 clean:
 	@echo clean ...
-	@rm -fr $(BUILD) $(TARGET).3dsx $(OUTPUT).smdh $(TARGET).elf
+	@rm -fr $(BUILD) $(TARGET).3dsx $(TARGET).smdh $(TARGET).elf \
+	        $(TARGET).cia $(TOPDIR)/banner.bnr
+
+BANNERTOOL := $(TOPDIR)/bannertool
+
+cia: all
+	@echo "=== Generazione banner ==="
+	$(BANNERTOOL) makebanner \
+	    -i $(TOPDIR)/banner.png \
+	    -a $(TOPDIR)/audio.wav \
+	    -o $(TOPDIR)/banner.bnr
+	@echo "=== Generazione SMDH ==="
+	$(BANNERTOOL) makesmdh \
+	    -s "3DS Weather" \
+	    -l "App meteo per Nintendo 3DS" \
+	    -p "Dzhmelyk135" \
+	    -i $(TOPDIR)/icon.png \
+	    -o $(TOPDIR)/$(TARGET).smdh
+	@echo "=== Generazione CIA ==="
+	makerom -f cia \
+	        -target t \
+	        -exefslogo \
+	        -o $(TOPDIR)/$(TARGET).cia \
+	        -elf $(TOPDIR)/$(TARGET).elf \
+	        -rsf $(TOPDIR)/app.rsf \
+	        -banner $(TOPDIR)/banner.bnr \
+	        -icon $(TOPDIR)/$(TARGET).smdh
+	@echo "=== CIA pronto: $(TARGET).cia ==="
 
 else
 

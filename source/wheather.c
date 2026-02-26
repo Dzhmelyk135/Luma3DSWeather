@@ -9,6 +9,7 @@
 #define HTTP_BUF_SIZE  (96 * 1024)
 #define MAX_TOKENS     2048
 
+// ── JSON helpers ──────────────────────────────────────────────────────────
 static int jsoneq(const char *json, jsmntok_t *tok, const char *s) {
     if (tok->type == JSMN_STRING &&
         (int)strlen(s) == tok->end - tok->start &&
@@ -25,6 +26,7 @@ static void tok2str(const char *json, jsmntok_t *tok,
     out[len] = '\0';
 }
 
+// ── HTTP GET con redirect ─────────────────────────────────────────────────
 static int http_get(const char *url, char *buf,
                     u32 bufsize, u32 *bytesRead) {
     httpcContext ctx;
@@ -37,10 +39,9 @@ static int http_get(const char *url, char *buf,
     httpcSetKeepAlive(&ctx, HTTPC_KEEPALIVE_DISABLED);
     httpcAddRequestHeaderField(&ctx, "User-Agent",
                                "Mozilla/5.0 (Nintendo 3DS)");
-    httpcAddRequestHeaderField(&ctx, "Accept",
-                               "application/json");
+    httpcAddRequestHeaderField(&ctx, "Accept",       "application/json");
     httpcAddRequestHeaderField(&ctx, "Accept-Encoding", "identity");
-    httpcAddRequestHeaderField(&ctx, "Connection",      "close");
+    httpcAddRequestHeaderField(&ctx, "Connection",   "close");
 
     rc = httpcBeginRequest(&ctx);
     if (R_FAILED(rc)) { httpcCloseContext(&ctx); return -2; }
@@ -50,11 +51,9 @@ static int http_get(const char *url, char *buf,
 
     if (statuscode == 301 || statuscode == 302) {
         char newurl[512] = "";
-        httpcGetResponseHeader(&ctx, "Location",
-                               newurl, sizeof(newurl));
+        httpcGetResponseHeader(&ctx, "Location", newurl, sizeof(newurl));
         httpcCloseContext(&ctx);
-        if (newurl[0])
-            return http_get(newurl, buf, bufsize, bytesRead);
+        if (newurl[0]) return http_get(newurl, buf, bufsize, bytesRead);
         return -3;
     }
     if (statuscode != 200) {
@@ -63,23 +62,25 @@ static int http_get(const char *url, char *buf,
     }
 
     *bytesRead = 0;
-    u32 readSize = 0;
     u8 *ptr = (u8*)buf;
     u32 remaining = bufsize - 1;
+    Result drc;
     do {
-        rc = httpcReceiveData(&ctx, ptr, remaining);
+        u32 readSize = 0;
+        drc = httpcReceiveData(&ctx, ptr, remaining);
         httpcGetDownloadSizeState(&ctx, &readSize, NULL);
         ptr       = (u8*)buf + readSize;
         remaining = bufsize - 1 - readSize;
-    } while (rc == (Result)HTTPC_RESULTCODE_DOWNLOADPENDING
+        *bytesRead = readSize;
+    } while (drc == (Result)HTTPC_RESULTCODE_DOWNLOADPENDING
              && remaining > 0);
 
-    *bytesRead = readSize;
     buf[*bytesRead] = '\0';
     httpcCloseContext(&ctx);
     return (*bytesRead > 0) ? 0 : -4;
 }
 
+// ── Geocoding ─────────────────────────────────────────────────────────────
 int weather_geocode(const char *city_name, float *lat, float *lon,
                     char *found_name, char *timezone) {
     char url[256];
@@ -98,7 +99,7 @@ int weather_geocode(const char *city_name, float *lat, float *lon,
 
     snprintf(url, sizeof(url),
         "http://geocoding-api.open-meteo.com/v1/search"
-        "?name=%s&count=1&language=it&format=json", encoded);
+        "?name=%s&count=1&language=en&format=json", encoded);
 
     u32 bytesRead = 0;
     int ret = http_get(url, buf, HTTP_BUF_SIZE, &bytesRead);
@@ -130,6 +131,7 @@ int weather_geocode(const char *city_name, float *lat, float *lon,
     return (found >= 2) ? 0 : -10;
 }
 
+// ── Fetch dati meteo ──────────────────────────────────────────────────────
 int weather_fetch(float lat, float lon,
                   const char *timezone, WeatherData *out) {
     char url[512];
@@ -145,7 +147,7 @@ int weather_fetch(float lat, float lon,
         else tz_enc[ti++] = timezone[i];
     }
 
-    // ── Richiesta 1: solo dati correnti ──────────────────────────��───
+    // ── Richiesta 1: dati correnti ────────────────────────────────────
     snprintf(url, sizeof(url),
         "http://api.open-meteo.com/v1/forecast"
         "?latitude=%.4f&longitude=%.4f"
@@ -197,7 +199,6 @@ int weather_fetch(float lat, float lon,
                 out->pressure_now = strtof(val,NULL);
             } else if (jsoneq(buf,&tok[i],"time")==0
                        && tok[i+1].type==JSMN_STRING) {
-                // "2026-02-25T14:00" → estrai ora
                 char tstr[32];
                 tok2str(buf,&tok[i+1],tstr,sizeof(tstr));
                 if (strlen(tstr) >= 13)
@@ -207,9 +208,7 @@ int weather_fetch(float lat, float lon,
         free(tok);
     }
 
-    // ── Richiesta 2: hourly solo oggi (forecast_days=1) ───────────────
-    // Con forecast_days=1 Open-Meteo restituisce esattamente
-    // le 24 ore di oggi: [0]=00:00, [1]=01:00, ..., [23]=23:00
+    // ── Richiesta 2: oraria oggi ──────────────────────────────────────
     snprintf(url, sizeof(url),
         "http://api.open-meteo.com/v1/forecast"
         "?latitude=%.4f&longitude=%.4f"
@@ -234,7 +233,6 @@ int weather_fetch(float lat, float lon,
 
         for (int i = 0; i < r - 1; i++) {
             if (tok[i].type != JSMN_STRING) continue;
-
             if (jsoneq(buf,&tok[i],"temperature_2m")==0
                 && tok[i+1].type==JSMN_ARRAY) {
                 temp_arr_count++;
@@ -270,7 +268,7 @@ int weather_fetch(float lat, float lon,
         free(tok);
     }
 
-    // ── Richiesta 3: solo daily 7 giorni ─────────────────────────────
+    // ── Richiesta 3: giornaliera 7 giorni ────────────────────────────
     snprintf(url, sizeof(url),
         "http://api.open-meteo.com/v1/forecast"
         "?latitude=%.4f&longitude=%.4f"
@@ -294,7 +292,6 @@ int weather_fetch(float lat, float lon,
 
         for (int i = 0; i < r - 1; i++) {
             if (tok[i].type != JSMN_STRING) continue;
-
             if (jsoneq(buf,&tok[i],"weather_code")==0
                 && tok[i+1].type==JSMN_ARRAY) {
                 for (int j=0;j<FORECAST_DAYS&&j<tok[i+1].size;j++) {
@@ -359,33 +356,34 @@ int weather_fetch(float lat, float lon,
     return 0;
 }
 
+// ── Descrizioni codici WMO ────────────────────────────────────────────────
 const char *weather_code_desc(int code) {
     switch(code) {
-        case 0:  return "Sereno";
-        case 1:  return "Quasi sereno";
-        case 2:  return "Parz. nuvoloso";
-        case 3:  return "Nuvoloso";
-        case 45: return "Nebbia";
-        case 48: return "Nebbia gelata";
-        case 51: return "Pioggerella lieve";
-        case 53: return "Pioggerella";
-        case 55: return "Pioggerella forte";
-        case 61: return "Pioggia lieve";
-        case 63: return "Pioggia";
-        case 65: return "Pioggia forte";
-        case 71: return "Neve lieve";
-        case 73: return "Neve";
-        case 75: return "Neve intensa";
-        case 77: return "Granelli neve";
-        case 80: return "Rovescio lieve";
-        case 81: return "Rovescio";
-        case 82: return "Rovescio forte";
-        case 85: return "Nevicata lieve";
-        case 86: return "Nevicata forte";
-        case 95: return "Temporale";
-        case 96: return "Temp.+grandine";
-        case 99: return "Temp.+grandine f.";
-        default: return "Sconosciuto";
+        case 0:  return "Clear sky";
+        case 1:  return "Mostly clear";
+        case 2:  return "Partly cloudy";
+        case 3:  return "Overcast";
+        case 45: return "Fog";
+        case 48: return "Icy fog";
+        case 51: return "Light drizzle";
+        case 53: return "Drizzle";
+        case 55: return "Heavy drizzle";
+        case 61: return "Light rain";
+        case 63: return "Rain";
+        case 65: return "Heavy rain";
+        case 71: return "Light snow";
+        case 73: return "Snow";
+        case 75: return "Heavy snow";
+        case 77: return "Snow grains";
+        case 80: return "Light showers";
+        case 81: return "Showers";
+        case 82: return "Heavy showers";
+        case 85: return "Light snow showers";
+        case 86: return "Heavy snow showers";
+        case 95: return "Thunderstorm";
+        case 96: return "Storm + hail";
+        case 99: return "Storm + heavy hail";
+        default: return "Unknown";
     }
 }
 
